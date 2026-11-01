@@ -22,29 +22,6 @@ from lightning.pytorch.callbacks import Callback, EMAWeightAveraging, WeightAver
 class ReuseModel(LightningModule):
     def __init__(self, initial=1.0):
         super().__init__()
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-import pytest
-import torch
-from torch.utils.data import DataLoader, TensorDataset
-
-from lightning.pytorch import LightningModule, Trainer
-from lightning.pytorch.callbacks import Callback, EMAWeightAveraging, WeightAveraging
-
-
-class ReuseModel(LightningModule):
-    def __init__(self, initial=1.0):
-        super().__init__()
         self.weight = torch.nn.Parameter(torch.tensor(initial))
 
     def training_step(self, batch, batch_idx):
@@ -147,4 +124,6 @@ def test_restore_after_setup_reinitialization(tmp_path, kind, reused):
     torch.testing.assert_close(
         resume.optimizers[0].state[final.weight]["momentum_buffer"],
         full.optimizers[0].state[model.weight]["momentum_buffer"],
-      )
+    )
+
+# Explicit checkpoint restore is intentionally exercised after fit setup.

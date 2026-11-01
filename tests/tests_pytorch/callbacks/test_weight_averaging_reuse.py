@@ -126,4 +126,5 @@ def test_restore_after_setup_reinitialization(tmp_path, kind, reused):
         full.optimizers[0].state[model.weight]["momentum_buffer"],
     )
 
+
 # Explicit checkpoint restore is intentionally exercised after fit setup.

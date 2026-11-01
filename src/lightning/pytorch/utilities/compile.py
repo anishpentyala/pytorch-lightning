@@ -44,6 +44,10 @@ def from_compiled(model: OptimizedModule) -> "pl.LightningModule":
             f"`model` is expected to be a compiled LightningModule. Found a `{type(orig_module).__name__}` instead"
         )
 
+    # A previous conversion replaced these methods already. Keep the original methods, not nested wrappers.
+    if orig_module._compiler_ctx is not None:
+        to_uncompiled(orig_module)
+
     orig_module._compiler_ctx = {
         "compiler": "dynamo",
         "dynamo_ctx": model.dynamo_ctx,
@@ -122,4 +126,4 @@ def _verify_strategy_supports_compile(model: "pl.LightningModule", strategy: Str
                 f"Using a compiled model is incompatible with the current strategy: `{type(strategy).__name__}`."
                 f" Only {supported_strategy_names} support compilation. Either switch to one of the supported"
                 " strategies or avoid passing in compiled model."
-            )
+                                     )

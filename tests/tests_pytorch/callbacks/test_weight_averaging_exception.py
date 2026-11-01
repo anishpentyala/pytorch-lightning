@@ -205,3 +205,46 @@ def test_validation_failure_repeated_fit(tmp_path, callback):
     tr.fit_loop.epoch_loop.max_steps = 3
     tr.fit(model)
     assert not getattr(cb, "_validation_weights_swapped", False)
+
+
+@pytest.mark.parametrize("kind", ["swa", "ema"])
+@pytest.mark.parametrize("acc", [1, 2])
+def test_exception_resume_final_optimizer_parity(tmp_path, kind, acc):
+    class Model(_ExceptionModel):
+        def configure_optimizers(self):
+            return torch.optim.SGD(self.parameters(), lr=0.1, momentum=0.9)
+
+        def train_dataloader(self):
+            return DataLoader(TensorDataset(torch.ones(8, 1)), batch_size=1)
+
+    def callback():
+        return WeightAveraging() if kind == "swa" else EMAWeightAveraging(decay=0.8)
+
+    def make(path, cbs):
+        t = _exception_trainer(path, cbs, 4)
+        t.accumulate_grad_batches = acc
+        t.val_check_interval = 2 * acc
+        return t
+
+    full = Model()
+    fcb = callback()
+    f = make(tmp_path / "full", [fcb])
+    f.fit(full)
+    cb = callback()
+    ck = ModelCheckpoint(dirpath=tmp_path / "crashed", save_on_exception=True, save_top_k=-1)
+    partial = Model("val")
+    t = make(tmp_path / "crashed", [cb, ck])
+    with pytest.raises(RuntimeError, match="deliberate failure"):
+        t.fit(partial)
+    end = Model()
+    ecb = callback()
+    resume_checkpoint = ModelCheckpoint(dirpath=tmp_path / "crashed", save_top_k=-1)
+    r = make(tmp_path / "resume", [ecb, resume_checkpoint])
+    r.fit(end, ckpt_path=ck._last_checkpoint_saved)
+    torch.testing.assert_close(end.weight, full.weight)
+    torch.testing.assert_close(ecb._average_model.module.weight, fcb._average_model.module.weight)
+    assert ecb._average_model.n_averaged == fcb._average_model.n_averaged
+    torch.testing.assert_close(
+        r.optimizers[0].state[end.weight]["momentum_buffer"], f.optimizers[0].state[full.weight]["momentum_buffer"]
+    )
+    assert r.global_step == f.global_step == 4

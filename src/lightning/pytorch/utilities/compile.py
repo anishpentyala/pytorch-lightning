@@ -126,4 +126,4 @@ def _verify_strategy_supports_compile(model: "pl.LightningModule", strategy: Str
                 f"Using a compiled model is incompatible with the current strategy: `{type(strategy).__name__}`."
                 f" Only {supported_strategy_names} support compilation. Either switch to one of the supported"
                 " strategies or avoid passing in compiled model."
-                                     )
+            )
